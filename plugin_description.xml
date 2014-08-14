@@ -1,0 +1,9 @@
+<library path="lib/librviz_recorder">
+<class name="rviz_recorder/RecorderPanel"
+type="rviz_recorder::RecorderPanel"
+base_class_type="rviz::Panel">
+<description>
+A panel plugin that allows easy recording of videos from RVIZ
+</description>
+</class>
+</library>
