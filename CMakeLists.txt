@@ -17,7 +17,14 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+pkg_check_modules(ffmpeg REQUIRED)
 
+#pkg_check_modules(libavcodec REQUIRED)
+#pkg_check_modules(libavformat REQUIRED)
+#pkg_check_modules(libswscale REQUIRED)
+
+#set(ffmpeg_INCLUDE_DIRS ${libavcodec_INCLUDE_DIRS} ${libavformat_INCLUDE_DIRS} ${libswscale_INCLUDE_DIRS})
+#set(ffmpeg_LIBRARIES ${libavcodec_LIBRARIES} ${libavformat_LIBRARIES} ${libswscale_LIBRARIES})
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -100,6 +107,7 @@ catkin_package(
 include_directories(include)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
+include_directories(${ffmpeg_INCLUDE_DIRS})
 
 ## Declare a cpp library
 # add_library(rviz_video_recorder
@@ -121,7 +129,13 @@ include_directories(${catkin_INCLUDE_DIRS})
 qt4_wrap_cpp(MOC_FILES include/rviz_video_recorder/recorder_panel.h)
 
 add_library(rviz_recorder src/recorder_panel.cpp ${MOC_FILES})
-target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_LIBRARIES} default_plugin)
+target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_LIBRARIES} default_plugin ${ffmpeg_LIBRARIES})
+
+add_executable(create_video src/create_video.cpp)
+target_link_libraries(create_video ${catkin_LIBRARIES} ${ffmpeg_LIBRARIES})
+
+MESSAGE(STATUS "FFMPEG include: " ${ffmpeg_INCLUDE_DIRS})
+MESSAGE(STATUS "FFMPEG libs: " ${ffmpeg_LIBRARIES})
 
 #############
 ## Install ##
