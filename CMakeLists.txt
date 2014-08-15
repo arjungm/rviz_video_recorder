@@ -17,7 +17,8 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
-pkg_check_modules(ffmpeg REQUIRED)
+pkg_check_modules(ffmpeg REQUIRED libavcodec libavformat libswscale)
+#how do I link against FFMPEG?
 
 #pkg_check_modules(libavcodec REQUIRED)
 #pkg_check_modules(libavformat REQUIRED)
@@ -134,8 +135,8 @@ target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_
 add_executable(create_video src/create_video.cpp)
 target_link_libraries(create_video ${catkin_LIBRARIES} ${ffmpeg_LIBRARIES})
 
-MESSAGE(STATUS "FFMPEG include: " ${ffmpeg_INCLUDE_DIRS})
-MESSAGE(STATUS "FFMPEG libs: " ${ffmpeg_LIBRARIES})
+MESSAGE(STATUS "FFMPEG include: " ${FFMPEG_INCLUDE_DIRS})
+MESSAGE(STATUS "FFMPEG libs: " ${FFMPEG_LIBRARIES})
 
 #############
 ## Install ##
