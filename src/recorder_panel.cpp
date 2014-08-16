@@ -2,10 +2,6 @@
 
 #include <rviz/visualization_manager.h>
 
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libswscale/swscale.h>
-
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -92,11 +88,6 @@ namespace rviz_recorder
     {
       ROS_INFO("Recording!");
     }
-  }
-
-  void RecorderPanel::createVideo()
-  {
-    AVFormatContext* format_context_ptr;
   }
 }
 

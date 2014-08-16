@@ -27,7 +27,6 @@ namespace rviz_recorder
       void updateTopic();
       void saveSnapshotToQueue();
       void toggleRecording();
-      void createVideo();
 
     protected:
       ros::NodeHandle nh_;
