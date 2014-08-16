@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(rviz_video_recorder)
 
+set(CMAKE_MODULE_PATH 
+    ${CMAKE_MODULE_PATH}
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -17,15 +21,7 @@ add_definitions(-DQT_NO_KEYWORDS)
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
-pkg_check_modules(ffmpeg REQUIRED libavcodec libavformat libswscale)
-#how do I link against FFMPEG?
-
-#pkg_check_modules(libavcodec REQUIRED)
-#pkg_check_modules(libavformat REQUIRED)
-#pkg_check_modules(libswscale REQUIRED)
-
-#set(ffmpeg_INCLUDE_DIRS ${libavcodec_INCLUDE_DIRS} ${libavformat_INCLUDE_DIRS} ${libswscale_INCLUDE_DIRS})
-#set(ffmpeg_LIBRARIES ${libavcodec_LIBRARIES} ${libavformat_LIBRARIES} ${libswscale_LIBRARIES})
+find_package(FFMPEG REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -108,7 +104,7 @@ catkin_package(
 include_directories(include)
 include_directories(${Boost_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS})
-include_directories(${ffmpeg_INCLUDE_DIRS})
+include_directories(${FFMPEG_INCLUDE_DIRS})
 
 ## Declare a cpp library
 # add_library(rviz_video_recorder
@@ -128,15 +124,10 @@ include_directories(${ffmpeg_INCLUDE_DIRS})
 # )
 
 qt4_wrap_cpp(MOC_FILES include/rviz_video_recorder/recorder_panel.h)
-
 add_library(rviz_recorder src/recorder_panel.cpp ${MOC_FILES})
-target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_LIBRARIES} default_plugin ${ffmpeg_LIBRARIES})
-
+target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_LIBRARIES} default_plugin)
 add_executable(create_video src/create_video.cpp)
-target_link_libraries(create_video ${catkin_LIBRARIES} ${ffmpeg_LIBRARIES})
-
-MESSAGE(STATUS "FFMPEG include: " ${FFMPEG_INCLUDE_DIRS})
-MESSAGE(STATUS "FFMPEG libs: " ${FFMPEG_LIBRARIES})
+target_link_libraries(create_video ${catkin_LIBRARIES} ${FFMPEG_LIBRARIES})
 
 #############
 ## Install ##
