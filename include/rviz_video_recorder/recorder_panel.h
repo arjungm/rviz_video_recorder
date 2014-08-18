@@ -25,8 +25,10 @@ namespace rviz_recorder
     
     protected Q_SLOTS:
       void updateTopic();
+      void writeImageQueue();
       void saveSnapshotToQueue();
       void toggleRecording();
+      void writeImages();
 
     protected:
       ros::NodeHandle nh_;
@@ -35,6 +37,7 @@ namespace rviz_recorder
       QLineEdit* command_topic_editor_;
 
       QPushButton* record_button_;
+      QPushButton* save_images_button_;
 
       std::queue<QPixmap> snapshot_queue_;
       bool is_recording_;
