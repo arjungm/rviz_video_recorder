@@ -66,7 +66,7 @@ else (FFMPEG_LIBRARIES AND FFMPEG_INCLUDE_DIR)
     PATHS ${_FFMPEG_AVUTIL_LIBRARY_DIR} /usr/lib/x86_64-linux-gnu /usr/lib
   )
 
-  find_library(FFMPEG_SWSCALE
+  find_library(FFMPEG_LIBSWSCALE
     NAMES swscale
     PATHS ${_FFMPEG_SWSCALE_LIBRARY_DIR} /usr/lib/x86_64-linux-gnu /usr/lib
   )
