@@ -126,6 +126,10 @@ include_directories(${FFMPEG_INCLUDE_DIRS})
 qt4_wrap_cpp(MOC_FILES include/rviz_video_recorder/recorder_panel.h)
 add_library(rviz_recorder src/recorder_panel.cpp ${MOC_FILES})
 target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_LIBRARIES} default_plugin)
+
+add_library(ffmpeg_recorder src/ffmpeg_video_creator.cpp)
+target_link_libraries(ffmpeg_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${FFMPEG_LIBRARIES})
+
 add_executable(create_video src/create_video.cpp)
 target_link_libraries(create_video ${catkin_LIBRARIES} ${FFMPEG_LIBRARIES})
 
