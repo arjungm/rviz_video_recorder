@@ -108,10 +108,12 @@ void FFMPEGImageToVideoCreator::open_video()
 
 void FFMPEGImageToVideoCreator::close_video()
 {
+  avcodec_close( video_stream_->codec );
 }
 
 void FFMPEGImageToVideoCreator::add_video_stream()
 {
+  
 }
 
 void FFMPEGImageToVideoCreator::write_video_frame()
