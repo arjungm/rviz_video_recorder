@@ -130,6 +130,9 @@ target_link_libraries(rviz_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${QT_
 add_library(ffmpeg_recorder src/ffmpeg_video_creator.cpp)
 target_link_libraries(ffmpeg_recorder ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${FFMPEG_LIBRARIES})
 
+add_executable(ffmpeg_video src/test_ffmpeg_video_creator.cpp)
+target_link_libraries(ffmpeg_video ffmpeg_recorder ${catkin_LIBRARIES} ${FFMPEG_LIBRARIES})
+
 add_executable(create_video src/create_video.cpp)
 target_link_libraries(create_video ${catkin_LIBRARIES} ${FFMPEG_LIBRARIES})
 
