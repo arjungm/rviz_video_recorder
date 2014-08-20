@@ -33,24 +33,29 @@ class FFMPEGImageToVideoCreator
     ~FFMPEGImageToVideoCreator();
     void loadImages( const std::string& directory, const std::string& prefix );
     void createVideo( const std::string& video_filename );
+    void testFun();
   protected:
     void open_video();
     void close_video();
-    void add_video_stream();
+    void add_video_stream(enum CodecID codec_id);
     void write_video_frame();
-    boost::shared_ptr<FFMPEGFrame> read_image( const std::string& filename );
-    boost::shared_ptr<FFMPEGFrame> alloc_frame(PixelFormat pix_fmt, int width, int height);
+    void read_image( const std::string& filename);
+    void alloc_frame(PixelFormat pix_fmt, int width, int height, boost::shared_ptr<FFMPEGFrame> fframe);
 
   private:
     size_t frame_rate_;
+    int write_frame_count_;
     std::vector< boost::shared_ptr<AVFrame> > image_list_;
 
     // image reading
     boost::shared_ptr<AVCodecContext> image_codec_context_;
     boost::shared_ptr<AVFormatContext> image_format_context_;
+    boost::shared_ptr<FFMPEGFrame> image_frame_;
+    boost::shared_ptr<FFMPEGFrame> video_frame_;
 
     // video creation
     boost::shared_ptr<AVOutputFormat> video_output_format_;
+    boost::shared_ptr<AVCodecContext> video_codec_context_;
     boost::shared_ptr<AVFormatContext> video_format_context_;
     boost::shared_ptr<AVStream> video_stream_;
     boost::shared_ptr<uint8_t> video_buffer_;
