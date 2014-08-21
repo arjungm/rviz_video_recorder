@@ -21,8 +21,8 @@ extern "C" {
 
 struct FFMPEGFrame
 {
-  boost::shared_ptr<AVFrame> frame;
-  boost::shared_ptr<uint8_t> buffer;
+  AVFrame* frame;
+  uint8_t* buffer;
   int buffer_size;
 };
 
@@ -40,24 +40,24 @@ class FFMPEGImageToVideoCreator
     void add_video_stream(enum CodecID codec_id);
     void write_video_frame();
     void read_image( const std::string& filename);
-    void alloc_frame(PixelFormat pix_fmt, int width, int height, boost::shared_ptr<FFMPEGFrame> fframe);
+    void alloc_frame(PixelFormat pix_fmt, int width, int height, FFMPEGFrame& fframe);
 
   private:
     size_t frame_rate_;
     int write_frame_count_;
-    std::vector< boost::shared_ptr<AVFrame> > image_list_;
+    std::vector< AVFrame* > image_list_;
 
     // image reading
-    boost::shared_ptr<AVCodecContext> image_codec_context_;
-    boost::shared_ptr<AVFormatContext> image_format_context_;
-    boost::shared_ptr<FFMPEGFrame> image_frame_;
-    boost::shared_ptr<FFMPEGFrame> video_frame_;
+    AVCodecContext* image_codec_context_;
+    AVFormatContext* image_format_context_;
+    FFMPEGFrame image_frame_;
+    FFMPEGFrame video_frame_;
 
     // video creation
-    boost::shared_ptr<AVOutputFormat> video_output_format_;
-    boost::shared_ptr<AVCodecContext> video_codec_context_;
-    boost::shared_ptr<AVFormatContext> video_format_context_;
-    boost::shared_ptr<AVStream> video_stream_;
-    boost::shared_ptr<uint8_t> video_buffer_;
+    AVOutputFormat* video_output_format_;
+    AVCodecContext* video_codec_context_;
+    AVFormatContext* video_format_context_;
+    AVStream* video_stream_;
+    uint8_t* video_buffer_;
     int video_buffer_size_;
 };

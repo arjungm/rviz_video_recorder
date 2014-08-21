@@ -7,7 +7,15 @@
 #define STREAM_PIX_FMT PIX_FMT_YUV420P
 
 FFMPEGImageToVideoCreator::FFMPEGImageToVideoCreator() :
-write_frame_count_(0)
+write_frame_count_(0),
+image_frame_(),
+video_frame_(),
+image_format_context_(NULL),
+video_format_context_(NULL),
+image_codec_context_(NULL),
+video_codec_context_(NULL),
+video_stream_(NULL),
+video_output_format_(NULL)
 {
   av_register_all();
 }
@@ -24,47 +32,43 @@ void FFMPEGImageToVideoCreator::createVideo( const std::string& video_filename )
 
 void FFMPEGImageToVideoCreator::testFun()
 {
-  image_frame_ = boost::make_shared<FFMPEGFrame>();
-  
   read_image("/home/amenon/Pictures/text_slide.jpg");
   std::string output_filename = "test.mp4";
-  video_output_format_.reset(av_guess_format(NULL, output_filename.c_str(), NULL));
+  video_output_format_ = av_guess_format(NULL, output_filename.c_str(), NULL);
   if (!video_output_format_) {
     printf("Could not deduce output format from file extension: using MPEG.\n");
-    video_output_format_.reset(av_guess_format("mpeg", NULL, NULL));
+    video_output_format_ = av_guess_format("mpeg", NULL, NULL);
   }
   if (!video_output_format_) {
     fprintf(stderr, "Could not find suitable output format\n");
     exit(1);
   }
-
-  video_format_context_.reset( avformat_alloc_context() );
-  video_format_context_->oformat = video_output_format_.get();
+  
+  video_format_context_ = avformat_alloc_context();
+  video_format_context_->oformat = video_output_format_;
   snprintf(video_format_context_->filename, sizeof(video_format_context_->filename), "%s", output_filename.c_str());
-  
-  video_stream_.reset();
-  if (video_output_format_->video_codec != CODEC_ID_NONE) {
-    add_video_stream(video_output_format_->video_codec);
-  }
-  if (av_set_parameters(video_format_context_.get(), NULL) < 0) {
-    fprintf(stderr, "Invalid output format parameters\n");
-    exit(1);
-  }
-   
-  dump_format(video_format_context_.get(), 0, output_filename.c_str(), 1);
-  
-  if (video_stream_)
-    open_video();
-
   /* open the output file, if needed */
   if (!(video_output_format_->flags & AVFMT_NOFILE)) {
-    if (url_fopen(&video_format_context_->pb, output_filename.c_str(), URL_WRONLY) < 0) {
+    //if (url_fopen(&video_format_context_->pb, output_filename.c_str(), URL_WRONLY) < 0)
+    if( avio_open(&video_format_context_->pb, output_filename.c_str(), AVIO_FLAG_WRITE) < 0)
+    {
       fprintf(stderr, "Could not open '%s'\n", output_filename.c_str());
       exit(1);
     }
   }
+  video_format_context_->flags = AVFMT_FLAG_CUSTOM_IO;
 
-  av_write_header(video_format_context_.get());
+  std::cout << "Filename:" << video_format_context_->filename << std::endl;
+  std::cout << "========" << std::endl;
+  
+  // open stream, open video
+  if (video_output_format_->video_codec != CODEC_ID_NONE)
+    add_video_stream(video_output_format_->video_codec);
+  av_dump_format(video_format_context_, 0, output_filename.c_str(), 1);
+  if (video_stream_)
+    open_video();
+
+  avformat_write_header(video_format_context_, NULL);
 
   double video_pts = 0.0;
   for(;;) {
@@ -78,7 +82,6 @@ void FFMPEGImageToVideoCreator::testFun()
       break;
 
     /* write interleaved audio and video frames */
-    std::cout << "Writing!" << std::endl;
     write_video_frame();
   }
 
@@ -87,90 +90,100 @@ void FFMPEGImageToVideoCreator::testFun()
    * header; otherwise write_trailer may try to use memory that
    * was freed on av_codec_close() */
   std::cout << "Trailer!" << std::endl;
-  av_write_trailer(video_format_context_.get());
+  av_write_trailer(video_format_context_);
 
   std::cout << "Close video" << std::endl;
   /* close each codec */
   if (video_stream_)
     close_video();
+
+  // avformat_close_input(&video_format_context_); // NOT OPENED WITH AVFORMAT_OPEN_INPUT!
   
-  std::cout << "Close streams" << std::endl;
-  /* free the streams */
-  for(int i = 0; i < video_format_context_->nb_streams; i++) {
-    av_freep(&video_format_context_->streams[i]->codec);
-    av_freep(&video_format_context_->streams[i]);
-  }
+  if (!(video_output_format_->flags & AVFMT_NOFILE))
+    avio_close(video_format_context_->pb);
+  avformat_free_context(video_format_context_);
+  avcodec_close(video_codec_context_);
 
-  std::cout << "Close file" << std::endl;
-  if (!(video_output_format_->flags & AVFMT_NOFILE)) {
-    /* close the output file */
-    url_fclose(video_format_context_->pb);
-  }
-
-  std::cout << "Close vfc" << std::endl;
-  /* free the stream */
-  av_free(video_format_context_.get());
-  // video_format_context_.reset();
+  //std::cout << "Close streams" << std::endl;
+  ///* free the streams */
+  //for(int i = 0; i < video_format_context_->nb_streams; i++) {
+  //  av_freep(&video_format_context_->streams[i]->codec);
+  //  av_freep(&video_format_context_->streams[i]);
+  //}
+  //std::cout << "Close file" << std::endl;
+  //std::cout << "Close contexts" << std::endl;
+  ///* free the stream */
+  //av_free(video_format_context_);
   
   std::cout << "Close image" << std::endl;
-  av_free(image_frame_->frame.get());
-  // image_frame_.reset();
+  av_free(image_frame_.frame);
+  av_free(image_frame_.buffer);
 }
 
-void FFMPEGImageToVideoCreator::alloc_frame(PixelFormat pix_fmt, int width, int height, boost::shared_ptr<FFMPEGFrame> fframe)
+void FFMPEGImageToVideoCreator::alloc_frame(PixelFormat pix_fmt, int width, int height, FFMPEGFrame& fframe)
 {
+  if(fframe.frame)
+    av_free(fframe.frame);
   // allocate frame
-  fframe->frame.reset(avcodec_alloc_frame());
+  fframe.frame = avcodec_alloc_frame();
 
-  if(!fframe->frame)
+  if(!fframe.frame)
     std::cout << "Unable to allocate frame!" << std::endl;
   
   // make buffer
-  fframe->buffer_size = avpicture_get_size( pix_fmt, width, height);
-  fframe->buffer.reset( (uint8_t *) av_malloc( fframe->buffer_size * sizeof(uint8_t)) );
+  fframe.buffer_size = avpicture_get_size( pix_fmt, width, height);
+  fframe.buffer = (uint8_t *) av_malloc( fframe.buffer_size * sizeof(uint8_t));
   
   // connect buffer to frame
-  avpicture_fill((AVPicture *) fframe->frame.get(), fframe->buffer.get(), pix_fmt, width, height);
+  avpicture_fill((AVPicture *) fframe.frame, fframe.buffer, pix_fmt, width, height);
 }
 
 void FFMPEGImageToVideoCreator::read_image( const std::string& filename )
 {
-  image_format_context_.reset(avformat_alloc_context());
-  AVFormatContext* tmp = image_format_context_.get();
-  if(avformat_open_input( &tmp , filename.c_str(), NULL, NULL)!=0)
+  if(image_format_context_)
+    av_free(image_format_context_);
+  image_format_context_ = NULL;
+  image_format_context_ = avformat_alloc_context();
+
+  if(avformat_open_input( &image_format_context_ , filename.c_str(), NULL, NULL)!=0)
     std::cout << "Can't open image" << std::endl;    
 
   // get codec
   AVCodec* image_codec;
-  image_codec_context_.reset(image_format_context_->streams[0]->codec);
+  image_codec_context_ = image_format_context_->streams[0]->codec;
   image_codec_context_->width = 1600;
   image_codec_context_->height = 1200;
+
     // (*codec_context)->pix_fmt = PIX_FMT_YUV420P;
   image_codec = avcodec_find_decoder(image_codec_context_->codec_id);
   if(!image_codec)
     std::cout << "Failed to find codec" << std::endl;
-  if(avcodec_open2( image_codec_context_.get(), image_codec, NULL)<0)
+  if(avcodec_open2( image_codec_context_, image_codec, NULL)<0)
     std::cout << "Failed to open codec" << std::endl;
-
+  
   // get frame
   alloc_frame(image_codec_context_->pix_fmt, image_codec_context_->width, image_codec_context_->height, image_frame_);
 
   // read image into the frame
   AVPacket packet;
   int frame_number = 0;
-  while (av_read_frame(image_format_context_.get(), &packet) >= 0)
+  while (av_read_frame(image_format_context_, &packet) >= 0)
   {
     // image stream (only 1)
     if(packet.stream_index != 0)
       continue;
 
     int frame_finished; 
-    int ret = avcodec_decode_video2(image_codec_context_.get(), image_frame_->frame.get(), &frame_finished, &packet);
+    int ret = avcodec_decode_video2(image_codec_context_, image_frame_.frame, &frame_finished, &packet);
     if (ret > 0)
       std::cout << "Decoded" << std::endl;
     else 
       std::cout << "Failed to decode" << std::endl;
+
+    av_free_packet(&packet);
   }
+  avcodec_close(image_codec_context_);
+  avformat_close_input(&image_format_context_);
 }
 
 void FFMPEGImageToVideoCreator::open_video()
@@ -183,36 +196,38 @@ void FFMPEGImageToVideoCreator::open_video()
     std::cout << "Can't find video codec" << std::endl;
 
   // open codec
-  if( avcodec_open2( video_codec_context_.get(), video_codec, NULL)<0 )
+  if( avcodec_open2( video_codec_context_, video_codec, NULL)<0 )
     std::cout << "Can't open the video codec" << std::endl;
 
   // create video buffer
   if (!(video_format_context_->oformat->flags & AVFMT_RAWPICTURE))
   {
     video_buffer_size_ = 200000+video_codec_context_->width*video_codec_context_->height;
-    video_buffer_.reset((uint8_t *)av_malloc(video_buffer_size_));
+    video_buffer_ = (uint8_t *)av_malloc(video_buffer_size_);
   }
 
   // create video frame
-  video_frame_ = boost::make_shared<FFMPEGFrame>();
   alloc_frame(video_codec_context_->pix_fmt, video_codec_context_->width, video_codec_context_->height, video_frame_);
 }
 
 void FFMPEGImageToVideoCreator::close_video()
 {
-  avcodec_close( video_stream_->codec );
+  av_free(video_frame_.frame);
+  av_free(video_frame_.buffer);
+  av_free(video_buffer_);
 }
 
 void FFMPEGImageToVideoCreator::add_video_stream(enum CodecID codec_id)
 {
-  video_stream_.reset( av_new_stream(video_format_context_.get(), 0) );
+  video_stream_ = avformat_new_stream(video_format_context_, NULL);
+  video_stream_->id = 0;
 
   if (!video_stream_) {
     fprintf(stderr, "Could not alloc stream\n");
     exit(1);
   }
 
-  video_codec_context_.reset(video_stream_->codec);
+  video_codec_context_ = video_stream_->codec;
   video_codec_context_->codec_id = codec_id;
   video_codec_context_->codec_type = AVMEDIA_TYPE_VIDEO;
 
@@ -257,6 +272,7 @@ void FFMPEGImageToVideoCreator::write_video_frame()
   } 
   else 
   {
+    img_convert_ctx = NULL;
     img_convert_ctx = sws_getContext( video_codec_context_->width, 
                                       video_codec_context_->height, 
                                       PIX_FMT_YUV420P, 
@@ -268,8 +284,9 @@ void FFMPEGImageToVideoCreator::write_video_frame()
       fprintf(stderr, "Cannot initialize the conversion context\n");
       exit(1);
     }
-    sws_scale(img_convert_ctx, image_frame_->frame->data, image_frame_->frame->linesize, 0, 
-                video_codec_context_->height, video_frame_->frame->data, video_frame_->frame->linesize);
+    sws_scale(img_convert_ctx, image_frame_.frame->data, image_frame_.frame->linesize, 0, 
+                video_codec_context_->height, video_frame_.frame->data, video_frame_.frame->linesize);
+    sws_freeContext(img_convert_ctx);
   }
 
   if (video_format_context_->oformat->flags & AVFMT_RAWPICTURE) 
@@ -281,15 +298,15 @@ void FFMPEGImageToVideoCreator::write_video_frame()
 
     pkt.flags |= AV_PKT_FLAG_KEY;
     pkt.stream_index= video_stream_->index;
-    pkt.data= (uint8_t *)video_frame_.get();
+    pkt.data= (uint8_t *)video_frame_.frame;
     pkt.size= sizeof(AVPicture);
 
-    ret = av_interleaved_write_frame(video_format_context_.get(), &pkt);
+    ret = av_interleaved_write_frame(video_format_context_, &pkt);
   } 
   else
   {
     /* encode the image */
-    out_size = avcodec_encode_video(video_codec_context_.get(), video_buffer_.get(), video_buffer_size_, video_frame_->frame.get());
+    out_size = avcodec_encode_video(video_codec_context_, video_buffer_, video_buffer_size_, video_frame_.frame);
     /* if zero size, it means the image was buffered */
     if (out_size > 0) {
       AVPacket pkt;
@@ -302,11 +319,11 @@ void FFMPEGImageToVideoCreator::write_video_frame()
       if(video_codec_context_->coded_frame->key_frame)
         pkt.flags |= AV_PKT_FLAG_KEY;
       pkt.stream_index= video_stream_->index;
-      pkt.data= video_buffer_.get();
+      pkt.data= video_buffer_;
       pkt.size= out_size;
 
       /* write the compressed frame in the media file */
-      ret = av_interleaved_write_frame(video_format_context_.get(), &pkt);
+      ret = av_interleaved_write_frame(video_format_context_, &pkt);
     } 
     else
     {
