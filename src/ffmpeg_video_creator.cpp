@@ -102,7 +102,7 @@ void FFMPEGImageToVideoCreator::testFun()
   if (!(video_output_format_->flags & AVFMT_NOFILE))
     avio_close(video_format_context_->pb);
   avformat_free_context(video_format_context_);
-  avcodec_close(video_codec_context_);
+  avformat_free_context(image_format_context_);
 
   //std::cout << "Close streams" << std::endl;
   ///* free the streams */
@@ -182,8 +182,6 @@ void FFMPEGImageToVideoCreator::read_image( const std::string& filename )
 
     av_free_packet(&packet);
   }
-  avcodec_close(image_codec_context_);
-  avformat_close_input(&image_format_context_);
 }
 
 void FFMPEGImageToVideoCreator::open_video()
@@ -212,6 +210,8 @@ void FFMPEGImageToVideoCreator::open_video()
 
 void FFMPEGImageToVideoCreator::close_video()
 {
+  avcodec_close(video_codec_context_);
+  avcodec_close(image_codec_context_);
   av_free(video_frame_.frame);
   av_free(video_frame_.buffer);
   av_free(video_buffer_);
