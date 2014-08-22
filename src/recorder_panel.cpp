@@ -1,8 +1,12 @@
 #include "rviz_video_recorder/recorder_panel.h"
+#include <OgreRenderWindow.h>
 
+#include <rviz/window_manager_interface.h>
 #include <rviz/visualization_manager.h>
 #include <rviz/render_panel.h>
 
+#include <QRect>
+#include <QPainter>
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
@@ -36,6 +40,8 @@ namespace rviz_recorder
     connect( record_button_, SIGNAL( clicked() ), this, SLOT( toggleRecording() ) );
     connect( save_images_button_, SIGNAL( clicked() ), this, SLOT( writeImages() ) );
     connect( vis_manager_, SIGNAL( preUpdate() ), this, SLOT( saveSnapshotToQueue() ));
+
+    command_listener_ = nh_.subscribe("/command",1,&RecorderPanel::commandCallback, this);
   }
 
   void RecorderPanel::load( const rviz::Config& config )
@@ -45,6 +51,31 @@ namespace rviz_recorder
     if( config.mapGetString( "RecorderCommandTopic", &topic ))
     {
       command_topic_editor_->setText( topic );
+    }
+  }
+
+  void RecorderPanel::commandCallback(const boost::shared_ptr<rviz_video_recorder::RecorderRequest const>& msg)
+  {
+    if(msg->command==rviz_video_recorder::RecorderRequest::SCREENSHOT)
+    {
+      vis_manager_->getRenderPanel()->raise();
+      vis_manager_->getRenderPanel()->setFocus();
+      // vis_manager_->getRenderPanel()->render(&screenshot_);
+      screenshot_ = QPixmap::grabWindow( vis_manager_->getWindowManager()->getParentWindow()->winId() );
+      QString filepath( msg->filepath.c_str() );
+      bool result = screenshot_.save( filepath, "JPG", 100 );
+      //vis_manager_->getRenderPanel()->getRenderWindow()->setActive(true);
+      //vis_manager_->getRenderPanel()->getRenderWindow()->update();
+      //vis_manager_->getRenderPanel()->getRenderWindow()->writeContentsToFile( msg->filepath );
+      
+      if(result)
+        ROS_INFO("Screenshot saved to %s", msg->filepath.c_str());
+      else
+        ROS_WARN("Problem saving screenshot to %s", msg->filepath.c_str());
+    }
+    else if(msg->command==rviz_video_recorder::RecorderRequest::RECORD)
+    {
+      ROS_INFO("Recording saved to %s", msg->filepath.c_str());
     }
   }
 
@@ -66,9 +97,11 @@ namespace rviz_recorder
       // If the topic is the empty string, don't publish anything.
       if( command_topic_ == "" )
       {
+        command_listener_.shutdown();        
       }
       else
       {
+        command_listener_ = nh_.subscribe(command_topic_.toStdString(),1,&RecorderPanel::commandCallback, this);
       }
       Q_EMIT configChanged();
     }
@@ -86,11 +119,13 @@ namespace rviz_recorder
     else
       record_button_->setText("Start Recording");
   }
+
   void RecorderPanel::saveSnapshotToQueue()
   {
     if(is_recording_)
       snapshot_queue_.push(QPixmap::grabWindow( vis_manager_->getRenderPanel()->winId() ));
   }
+
   void RecorderPanel::writeImages()
   {
     std::string filename, image_directory = "/tmp/images";
