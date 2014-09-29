@@ -58,10 +58,10 @@ namespace rviz_recorder
   {
     if(msg->command==rviz_video_recorder::RecorderRequest::SCREENSHOT)
     {
-      vis_manager_->getRenderPanel()->raise();
-      vis_manager_->getRenderPanel()->setFocus();
+      // vis_manager_->getRenderPanel()->raise();
+      // vis_manager_->getRenderPanel()->setFocus();
       // vis_manager_->getRenderPanel()->render(&screenshot_);
-      screenshot_ = QPixmap::grabWindow( vis_manager_->getWindowManager()->getParentWindow()->winId() );
+      screenshot_ = QPixmap::grabWindow( vis_manager_->getRenderPanel()->winId() );//getWindowManager()->getParentWindow()->winId() );
       QString filepath( msg->filepath.c_str() );
       bool result = screenshot_.save( filepath, "JPG", 100 );
       //vis_manager_->getRenderPanel()->getRenderWindow()->setActive(true);
